@@ -150,7 +150,6 @@ public:
         message = "Received your connection assigning a handler for you\n";
         write(new_socket , message , strlen(message));         
         
-        //new_sock = (int*)malloc(1);
         new_sock = new int();
         *new_sock = new_socket;
         i=threads.size();
