@@ -7,6 +7,8 @@
 #include<thread> 
 #include<vector>
 #include<mutex>
+#include<memory>
+#include<utility>
 
 typedef std::lock_guard<std::mutex> glock;
 
@@ -56,9 +58,11 @@ public:
  * Connection handler for each client, waits for a msg from the client and distrbutes. 
  * */
 
-void *connection_handler(void *socket_desc,int i, ClientMgr *clientMgr)
+//void *connection_handler(void *socket_desc,int i, ClientMgr *clientMgr)
+void *connection_handler(std::unique_ptr<int> iptr,int i, ClientMgr *clientMgr)
 {
-    int sock = *(int*)socket_desc;
+    //int sock = *(int*)socket_desc;
+    int sock = *iptr;
     int read_size;
     char client_message[2000];    
     char message[100];
@@ -82,11 +86,9 @@ void *connection_handler(void *socket_desc,int i, ClientMgr *clientMgr)
         perror("recv failed");
     }
          
-    //Free the socket pointer and close connection
-    shutdown(*(int*)socket_desc,SHUT_RDWR);
-    close(*(int*)socket_desc);
-    free(socket_desc);
-     
+    // close connection, unique ptr will take care of deleting  memory
+    shutdown(*iptr,SHUT_RDWR);
+    close(*iptr);     
     return 0;
 }
 
@@ -138,7 +140,7 @@ public:
 
     void acceptConns(){
       
-      int new_socket, *new_sock;
+      int new_socket;
       struct sockaddr client;
       char const *message;
       int i;
@@ -150,10 +152,10 @@ public:
         message = "Received your connection assigning a handler for you\n";
         write(new_socket , message , strlen(message));         
         
-        new_sock = new int();
-        *new_sock = new_socket;
+        std::unique_ptr<int> p_int (new int);
+        *p_int = new_socket;
         i=threads.size();
-        threads.emplace_back(std::thread( connection_handler, (void*) new_sock, i,cmgr));  
+        threads.emplace_back(std::thread( connection_handler,std::move(p_int) , i,cmgr));   
         puts("Handler assigned");
       }
      
